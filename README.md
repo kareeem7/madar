@@ -2,9 +2,10 @@
 
 A bilingual (English & Arabic RTL) daily productivity web app: **Task Manager + Pomodoro Timer + Habit Tracker** in one place — zero backend, zero build step.
 
-## Live Demo
+## Live
 
-- **Live Page**: [https://kareeem7.github.io/madar--/](https://kareeem7.github.io/madar--/)
+**https://kareeem7.github.io/madar/** — works without signing up, and keeps working offline
+once it's loaded.
 
 ## Running Locally
 
@@ -66,6 +67,13 @@ js/
 ## Migration — Preserving User Data
 
 `migrate()` starts from `emptyState()` and merges saved state on top (per-level spread), automatically populating newly added fields while protecting required arrays and objects. Bump `version` on schema changes and write the migration logic inside `migrate()` based on `s.version`.
+
+## What it doesn't do
+
+- No sync between devices. It's one device, one state, by design.
+- No accounts, so no recovery if you wipe the browser.
+- The weekly local backups are the only safety net — and they pile up in localStorage
+  (only the last few should be kept; that's on the list).
 
 ## Next Steps — Top 5 Improvements
 
