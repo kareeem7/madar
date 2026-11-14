@@ -1,76 +1,80 @@
-# مدار — MADAR
+# MADAR (مدار)
 
-تطبيق إنتاجية يومي عربي RTL: **مدير مهام + بومودورو + متتبع عادات** في مكان واحد. بدون سيرفر، بدون build step.
+A bilingual (English & Arabic RTL) daily productivity web app: **Task Manager + Pomodoro Timer + Habit Tracker** in one place — zero backend, zero build step.
 
-## التشغيل
+## Live Demo
 
-- **مباشر**: افتح `index.html` من المتصفح (`file://`) — يعمل بالكامل.
-- **كسيرفر** (لتفعيل PWA والتثبيت): أي سيرفر ثابت، مثلاً:
-  ```
+- **Live Page**: [https://kareeem7.github.io/madar--/](https://kareeem7.github.io/madar--/)
+
+## Running Locally
+
+- **Direct (`file://`)**: Open `index.html` directly in your browser — works completely out of the box.
+- **Static Server** (required for PWA installation and Service Worker offline support): Serve the folder with any static server, for example:
+  ```bash
   npx serve .
-  # أو
+  # or
   python -m http.server 8080
   ```
 
-## هيكل الملفات
+## File Structure
 
-```
-index.html            App shell — سايدبار + توب بار + <main id="view"> + السكريبتات
+```text
+index.html            App shell — sidebar + top bar + <main id="view"> + scripts
 manifest.webmanifest  PWA manifest
-sw.js                 Service Worker (cache-first، أوفلاين كامل)
+sw.js                 Service Worker (cache-first, full offline support)
 css/
-  tokens.css          متغيرات التصميم (فاتح/غامق/كثافة)
-  base.css            reset + الهيكل + المكوّنات (أزرار/مودال/توست/لوحة أوامر)
-  views.css           تنسيقات كل شاشة
+  tokens.css          Design tokens (light/dark themes, comfort/compact density)
+  base.css            Reset + layout shell + components (buttons, modals, toasts, command palette)
+  views.css           Per-view styles
 js/
-  util.js             أدوات عامة + تواريخ محلية + i18n
-  store.js            الـ Store المركزي + persist + migration + IndexedDB + seed
-  ui.js               Toast / Modal (focus trap) / Menu / Drag بالـ Pointer Events
-  tasks.js            محلل الإدخال الطبيعي + منطق المهام + Undo + التكرار
-  pomodoro.js         المحرك الزمني (endsAt) + Web Audio ambience
-  habits.js           منطق العادات + السلاسل + اليوميات + الملاحظات
-  commands.js         Quick Add + لوحة الأوامر (Ctrl+K) + الاختصارات
-  app.js              الراوتر + التنقل + المظهر + Onboarding + الإقلاع
+  util.js             General utilities + local date helpers + AR/EN i18n dictionary
+  store.js            Central state store + persistence + migration + IndexedDB + seed data
+  ui.js               Toast / Modal (focus trap) / Menu / Drag-and-drop via Pointer Events
+  tasks.js            Natural-language quick-add parser + task logic + Undo + recurrence
+  pomodoro.js         Timer engine (endsAt-based) + Web Audio ambient sound synthesizer
+  habits.js           Habit logic + streaks + daily logs + notes
+  commands.js         Quick Add + Command Palette (Ctrl+K) + keyboard shortcuts
+  app.js              Router + navigation + theme/language controller + Onboarding + bootstrap
   views/              today / tasks / board / calendar / focus / habits / stats / notes / settings
 ```
 
-## المعمارية باختصار
+## Architecture Overview
 
-- **Store واحد** (`S` في `store.js`) بنمط `subscribe(fn)` + `emit(scope)`. كل تغيير يمرّ من `emit` → حفظ مؤجّل 300ms على `madar:state` في localStorage → المستمعين يعيدوا رندر الشاشة النشطة فقط (مع منع الرندر أثناء الكتابة أو فتح مودال).
-- **Router**: hash-based في `app.js` — جدول `ROUTES = {key: {fn, n, i}}`، و`refreshView()` تنفّذ دالة الشاشة وتظبط حالة التنقل والعنوان.
-- **السكريبتات classic** بترتيب يدوي في نهاية `<body>` (تشغيل من `file://` بلا مشاكل موديولز/CORS). كل ملف يعرّف دوال عامة؛ الترتيب: util → store → ui → domain → views → commands → app.
-- **البيانات**: localStorage للحالة والإعدادات، IndexedDB (`madar-db/sessions`) لسجل جلسات التركيز، نسخة احتياطية أسبوعية تلقائية `madar:backup:{date}`، ومزامنة تبويبات عبر `storage` event.
+- **Single Store** (`S` in `js/store.js`) using a `subscribe(fn)` + `emit(scope)` pattern. Every change flows through `emit` → debounced save (`300ms`) to `madar:state` in `localStorage` → listeners re-render only the active screen (skipping re-renders while typing in an input or when a modal is open).
+- **Router**: Hash-based in `js/app.js` — `ROUTES = {key: {fn, n, i}}` table, where `refreshView()` executes the view function and updates navigation state and page title.
+- **Classic Scripts**: Loaded manually in order at the end of `<body>` (runs cleanly from `file://` without ES module/CORS issues). Each file defines global functions in order: `util` → `store` → `ui` → domain → `views` → `commands` → `app`.
+- **Data & Storage**: `localStorage` for state and settings, `IndexedDB` (`madar-db/sessions`) for focus session history, automatic weekly backups (`madar:backup:{date}`), and cross-tab sync via the `storage` event.
 
-## تضيف شاشة جديدة إزاي؟
+## How to Add a New View
 
-1. أنشئ `js/views/myview.js` فيه دالة `renderMyView()` ترسم في `$('#view')`.
-2. سجّلها في `ROUTES` داخل `js/app.js`: `myview:{fn:renderMyView,n:()=>'اسمها',i:'bi-icon'}`.
-3. ضيف كلمة مفتاحها للقاموس في `js/util.js` (I18N) ولملف `<script>` في index.html.
-4. خلّيها تسمع التغييرات عبر أسماء الـ scopes المناسبة (`RERENDER`).
+1. Create `js/views/myview.js` with a `renderMyView()` function that renders into `$('#view')`.
+2. Register it in `ROUTES` inside `js/app.js`: `myview: {fn: renderMyView, n: () => t('myview'), i: 'bi-icon'}`.
+3. Add its translation key to `I18N` in `js/util.js`, include its `<script>` tag in `index.html`, and add it to `ASSETS` in `sw.js`.
+4. Have it listen for state updates via the appropriate scope names in `RERENDER`.
 
-## تضيف حقل لمهمة إزاي؟
+## How to Add a Task Field
 
-1. ضيفه في `newTaskObj` بـ `js/tasks.js` بقيمة افتراضية.
-2. ضيف تهيئة آمنة في `migrate()` بـ `js/store.js` (عشان بيانات المستخدمين الحاليين).
-3. اعرضه في `taskRow()` أو محرّر المهمة في `js/views/tasks.js`.
+1. Add it to `newTaskObj` in `js/tasks.js` with a default value.
+2. Add safe initialization in `migrate()` inside `js/store.js` (to preserve existing users' data).
+3. Display or edit it in `taskRow()` (`js/views/today.js`) and `openTaskEditor()` (`js/views/tasks.js`).
 
-## المزامنة السحابية لاحقًا (Supabase — نظريًا)
+## Future Cloud Sync (Supabase — Conceptual)
 
-- جدول `profiles(state jsonb, updated_at)` لمزامنة `S` كوحدة، وجدول `sessions(id, task_id, type, started_at, ...)` لسجل التركيز.
-- الاستراتيجية: Local-first — التطبيق يكتب محليًا أولًا، ثم push مؤجّل (debounced upsert)، وعند الاتصال pull مع حل تضارب Last-Write-Wins على مستوى `updatedAt` لكل عنصر. Realtime subscription يستبدل `storage` event بين الأجهزة.
+- A `profiles(state jsonb, updated_at)` table to sync `S` as a unit, and a `sessions(id, task_id, type, started_at, ...)` table for focus session history.
+- **Strategy**: Local-first — the app writes locally first, then runs a debounced upsert (`push`), and pulls on reconnect with Last-Write-Wins conflict resolution per item based on `updatedAt`. Realtime subscriptions replace cross-tab `storage` events across devices.
 
-## Migration — الحفاظ على بيانات المستخدم
+## Migration — Preserving User Data
 
-`migrate()` تبدأ من `emptyState()` وتدمج المحفوظ فوقه (spread لكل مستوى)، فتكمل الحقول الجديدة تلقائيًا وتحمي الحقول الواجبة (arrays/objects). ارفع `version` عند تغيير الـ schema واكتب التحويل داخل `migrate` حسب `s.version`.
+`migrate()` starts from `emptyState()` and merges saved state on top (per-level spread), automatically populating newly added fields while protecting required arrays and objects. Bump `version` on schema changes and write the migration logic inside `migrate()` based on `s.version`.
 
-## الخطوة التالية — أهم 5 تحسينات
+## Next Steps — Top 5 Improvements
 
-1. مزامنة سحابية (Supabase) + تسجيل دخول اختياري.
-2. تكامل Google Calendar (استيراد الاجتماعات كبلوكات في الخط الزمني).
-3. Widgets للشاشة الرئيسية (حلقات اليوم + زر تركيز).
-4. أصوات طبيعية متدرجة للتذكيرات حسب الأولوية.
-5. تكامل AI لتقسيم المهام الكبيرة لخطوات فرعية تلقائيًا.
+1. Cloud sync (Supabase) + optional user sign-in.
+2. Google Calendar integration (import meetings as blocks on the day timeline).
+3. Home screen widgets (today's rings + quick focus button).
+4. Gradual natural reminder sounds scaled by priority.
+5. AI integration to automatically split large tasks into subtasks.
 
-## ملاحظة عن React
+## Note on React
 
-المشروع متعمد Vanilla JS + Bootstrap فقط: React يتطلب build step (Vite/npm) ويكسر شرط «يفتح من file://» وقاعدة «ممنوع مكتبات JS خارجية». لو احتجت React لاحقًا: انقل كل دالة `render*` لكومبوننت، والـ Store لـ Zustand/Reducer بنفس أسماء الـ scopes — العقود جاهزة.
+The project intentionally uses Vanilla JS + Bootstrap (CSS/Icons) only: React requires a build step (Vite/npm), which breaks the "opens from `file://`" requirement and the "no external JS libraries" rule. If React is needed later, migrate each `render*` function into a component and the Store into Zustand/Reducer using the same scope names — the contracts are already ready.
